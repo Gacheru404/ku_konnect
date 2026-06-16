@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "228711345636",
+    "project_id": "ku-chat-d875d",
+    "storage_bucket": "ku-chat-d875d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:228711345636:android:60577376091126227debf1",
+        "android_client_info": {
+          "package_name": "com.example.ku_konnect"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaDpEnjxTAZ_MQVC6anpcPv_ySUGTyRgI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
