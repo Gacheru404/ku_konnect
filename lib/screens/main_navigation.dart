@@ -41,7 +41,11 @@ class _MainNavigationState
           currentIndex = 1;
         });
       }),
-      const ChatPage(),
+      ChatPage(onBack: () {
+        setState(() {
+          currentIndex = 0;
+        });
+      }),
       const UsersPage(),
       const StudyPage(),
       const MarketPage(),
@@ -89,49 +93,49 @@ class _MainNavigationState
 
   @override
   Widget build(BuildContext context) {
-
-    return Scaffold(
-
-      body: pages[currentIndex],
-
-      bottomNavigationBar:
-      BottomNavigationBar(
-
-        currentIndex: currentIndex,
-
-        onTap: (index) {
-
+    return PopScope(
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (currentIndex != 0) {
           setState(() {
-
-            currentIndex = index;
+            currentIndex = 0;
           });
-        },
-
-        type:
-        BottomNavigationBarType.fixed,
-
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(currentIndex == 1 ? Icons.chat_bubble : Icons.chat),
-            label: 'Chat',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Users',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            label: 'Study',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.store),
-            label: 'Market',
-          ),
-        ],
+        }
+      },
+      child: Scaffold(
+        body: pages[currentIndex],
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: currentIndex,
+          onTap: (index) {
+            setState(() {
+              currentIndex = index;
+            });
+          },
+          type: BottomNavigationBarType.fixed,
+          items: [
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(currentIndex == 1 ? Icons.chat_bubble : Icons.chat),
+              label: 'Chat',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.people),
+              label: 'Users',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.school),
+              label: 'Study',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.store),
+              label: 'Market',
+            ),
+          ],
+        ),
       ),
     );
   }

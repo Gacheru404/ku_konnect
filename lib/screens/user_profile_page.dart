@@ -109,13 +109,10 @@ class UserProfilePage extends StatelessWidget {
 
                       builder: (context) =>
 
-                          DMPage(
-
-                            receiverId:
-                            userData['id'],
-
-                            username:
-                            userData['username'],
+                          DmPage(
+                            receiverId: userData['id'],
+                            receiverUsername: userData['username'],
+                            receiverAvatarUrl: userData['avatar_url'],
                           ),
                     ),
                   );

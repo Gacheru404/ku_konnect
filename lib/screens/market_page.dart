@@ -15,17 +15,29 @@ class _MarketPageState extends State<MarketPage> {
   final supabase = Supabase.instance.client;
 
   Future<void> deleteItem(String itemId) async {
-    await supabase
-        .from('marketplace')
-        .delete()
-        .eq('id', itemId);
+    try {
+      await supabase
+          .from('marketplace')
+          .delete()
+          .eq('id', int.parse(itemId));
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Item deleted.')),
-    );
+      debugPrint('DELETE SUCCESS');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Item deleted.')),
+      );
+    } catch (e) {
+      debugPrint('DELETE ERROR: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete failed: $e')),
+      );
+    }
   }
-
   void showDeleteConfirm(String itemId) {
     showDialog(
       context: context,

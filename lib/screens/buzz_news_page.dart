@@ -88,6 +88,63 @@ class _BuzzNewsPageState extends State<BuzzNewsPage> {
     }
   }
 
+  Future<void> updateAnnouncement(
+      String id,
+      String title,
+      String body,
+      ) async {
+    try {
+      await supabase
+          .from('buzz_news')
+          .update({
+        'title': title,
+        'body': body,
+      })
+          .eq('id', id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Announcement updated'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Update failed: $e'),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> deleteAnnouncement(String id) async {
+    try {
+      await supabase
+          .from('buzz_news')
+          .delete()
+          .eq('id', id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Announcement deleted'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Delete failed: $e'),
+          ),
+        );
+      }
+    }
+  }
+
   void showPostDialog() {
     showDialog(
       context: context,
@@ -153,8 +210,65 @@ class _BuzzNewsPageState extends State<BuzzNewsPage> {
     );
   }
 
+  void showEditDialog(Map<String, dynamic> item) {
+    final editTitle =
+    TextEditingController(text: item['title']);
+
+    final editBody =
+    TextEditingController(text: item['body']);
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Announcement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: editTitle,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: editBody,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Content',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await updateAnnouncement(
+                item['id'].toString(),
+                editTitle.text.trim(),
+                editBody.text.trim(),
+              );
+
+              if (mounted) {
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+      'Current User: ${supabase.auth.currentUser?.id}',
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Buzz News'),
@@ -212,8 +326,13 @@ class _BuzzNewsPageState extends State<BuzzNewsPage> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.campaign, color: Colors.red),
+                              const Icon(
+                                Icons.campaign,
+                                color: Colors.red,
+                              ),
+
                               const SizedBox(width: 8),
+
                               Expanded(
                                 child: Text(
                                   item['title'],
@@ -223,6 +342,62 @@ class _BuzzNewsPageState extends State<BuzzNewsPage> {
                                   ),
                                 ),
                               ),
+
+                              if (isAdmin)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () =>
+                                      showEditDialog(item),
+                                ),
+
+                              if (isAdmin)
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: Colors.red,
+                                  ),
+                                  onPressed: () async {
+                                    final confirm =
+                                    await showDialog<bool>(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        title: const Text(
+                                          'Delete announcement?',
+                                        ),
+                                        content: const Text(
+                                          'This cannot be undone.',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(
+                                                    context, false),
+                                            child: const Text(
+                                              'Cancel',
+                                            ),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.pop(
+                                                    context, true),
+                                            child: const Text(
+                                              'Delete',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true) {
+                                      await deleteAnnouncement(
+                                        item['id'].toString(),
+                                      );
+                                    }
+                                  },
+                                ),
                             ],
                           ),
                           const SizedBox(height: 10),
@@ -238,5 +413,6 @@ class _BuzzNewsPageState extends State<BuzzNewsPage> {
         },
       ),
     );
+
   }
 }

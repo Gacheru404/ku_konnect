@@ -30,7 +30,7 @@ class _StudyPageState extends State<StudyPage> {
   Future<void> uploadDocument() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'ppt', 'pptx'],
+      allowedExtensions: ['pdf'],
     );
 
     if (result == null) return;
@@ -66,9 +66,27 @@ class _StudyPageState extends State<StudyPage> {
 
     try {
       final pickedFile = result.files.single;
+
+      final extension =
+      pickedFile.name.split('.').last.toLowerCase();
+
+      if (extension != 'pdf') {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Only PDF files may be uploaded.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
       final user = supabase.auth.currentUser;
       if (user == null) throw 'User not authenticated';
-      
+
       // 2. Sanitize filename (remove spaces and special characters)
       final originalName = pickedFile.name;
       final sanitizedName = originalName.replaceAll(RegExp(r'[^a-zA-Z0-9.]'), '_');
@@ -90,10 +108,6 @@ class _StudyPageState extends State<StudyPage> {
             .upload(fileName, file);
       }
 
-      final url = supabase.storage
-          .from(bucketName)
-          .getPublicUrl(fileName);
-
       final profile = await supabase
           .from('profiles')
           .select()
@@ -104,7 +118,7 @@ class _StudyPageState extends State<StudyPage> {
         'user_id': user.id,
         'username': profile['username'],
         'file_name': originalName,
-        'file_url': url,
+        'file_path': fileName,
         'category': category,
         'uploaded_at': DateTime.now().toIso8601String(),
       });
@@ -157,8 +171,24 @@ class _StudyPageState extends State<StudyPage> {
               ),
           ],
         ),
-        body: TabBarView(
-          children: categories.map((c) => _buildDocList(c)).toList(),
+
+        body: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
+              color: Colors.amber.shade100,
+              child: const Text(
+                'Only PDF documents are allowed.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: categories.map((c) => _buildDocList(c)).toList(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -208,10 +238,38 @@ class _StudyPageState extends State<StudyPage> {
                 subtitle: Text('By ${doc['username']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.download),
+                  // onPressed: () async {
+                  //   final messenger = ScaffoldMessenger.of(context);
+                  //   final url = Uri.parse(doc['file_url']);
+                  //
+                  //   if (await canLaunchUrl(url)) {
+                  //     await launchUrl(
+                  //       url,
+                  //       mode: LaunchMode.externalApplication,
+                  //     );
+                  //   } else {
+                  //     messenger.showSnackBar(
+                  //       const SnackBar(content: Text('Could not open file')),
+                  //     );
+                  //   }
+                  // },
                   onPressed: () async {
-                    final url = Uri.parse(doc['file_url']);
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(url);
+                    try {
+                      final signedUrl = await supabase.storage
+                          .from('storage-docs')
+                          .createSignedUrl(
+                        doc['file_path'],
+                        60,
+                      );
+
+                      debugPrint('SIGNED URL: $signedUrl');
+
+                      await launchUrl(
+                        Uri.parse(signedUrl),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    } catch (e) {
+                      debugPrint('OPEN ERROR: $e');
                     }
                   },
                 ),

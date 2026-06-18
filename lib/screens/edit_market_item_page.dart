@@ -64,7 +64,7 @@ class _EditMarketItemPageState extends State<EditMarketItemPage> {
       await supabase.from('marketplace').update({
         'title': titleController.text.trim(),
         'description': descriptionController.text.trim(),
-        'price': double.parse(priceController.text),
+        'price': priceController.text.trim(),
         'image_url': imageUrl,
       }).eq('id', widget.item['id']);
 
