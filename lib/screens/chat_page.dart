@@ -8,6 +8,7 @@
 //   (image/audio/video columns already exist as media_url + media_type)
 
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -26,8 +27,43 @@ class ChatPage extends StatefulWidget {
   State<ChatPage> createState() => _ChatPageState();
 }
 
+
 class _ChatPageState extends State<ChatPage>
     with WidgetsBindingObserver {
+
+  Future<void> _recordVoiceNote() async {
+    await _startRecording();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Recording Voice Note'),
+        content: const Text(
+          'Tap Stop when you are finished recording.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _cancelRecording();
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _stopAndSendRecording();
+            },
+            child: const Text('Stop & Send'),
+          ),
+        ],
+      ),
+    );
+  }
+
   final supabase = Supabase.instance.client;
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
@@ -37,6 +73,10 @@ class _ChatPageState extends State<ChatPage>
   bool isSending = false;
   bool isRecording = false;
   bool showAttachPanel = false;
+
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingTimer;
+
   String? _recordingPath;
   String? _currentlyPlayingUrl;
 
@@ -72,6 +112,7 @@ class _ChatPageState extends State<ChatPage>
     scrollController.dispose();
     _recorder.dispose();
     _audioPlayer.dispose();
+    _recordingTimer?.cancel();
     super.dispose();
   }
 
@@ -140,11 +181,29 @@ class _ChatPageState extends State<ChatPage>
     _recordingPath =
     '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
     await _recorder.start(const RecordConfig(), path: _recordingPath!);
+    _recordingDuration = Duration.zero;
+
+    _recordingTimer?.cancel();
+
+    _recordingTimer = Timer.periodic(
+      const Duration(seconds: 1),
+          (_) {
+        if (mounted) {
+          setState(() {
+            _recordingDuration += const Duration(seconds: 1);
+          });
+        }
+      },
+    );
+
     setState(() => isRecording = true);
   }
 
   Future<void> _stopAndSendRecording() async {
     final path = await _recorder.stop();
+
+    _recordingTimer?.cancel();
+
     setState(() => isRecording = false);
     if (path == null) return;
     setState(() {
@@ -157,9 +216,13 @@ class _ChatPageState extends State<ChatPage>
 
   Future<void> _cancelRecording() async {
     await _recorder.stop();
+
+    _recordingTimer?.cancel();
+
     setState(() {
       isRecording = false;
       _recordingPath = null;
+      _recordingDuration = Duration.zero;
     });
   }
 
@@ -289,10 +352,18 @@ class _ChatPageState extends State<ChatPage>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
+                  _attachItem(
+                    Icons.mic,
+                    Colors.pink,
+                    'Voice Note',
+                        () async {
+                      Navigator.pop(context);
+                      await _recordVoiceNote();
+                    },
+                  ),
                   _attachItem(Icons.poll, Colors.indigo, 'Poll', _createPoll),
                   _attachItem(Icons.contact_page, Colors.brown, 'Contact',
                       _shareContact),
-                  const SizedBox(width: 64), // spacer
                 ],
               ),
             ],
@@ -655,30 +726,24 @@ class _ChatPageState extends State<ChatPage>
                 ),
                 const SizedBox(width: 6),
                 // Send / Mic button
-                GestureDetector(
-                  onLongPress: _startRecording,
-                  onLongPressEnd: (_) => _stopAndSendRecording(),
-                  child: CircleAvatar(
-                    radius: 24,
-                    backgroundColor: Colors.green,
-                    child: isSending
-                        ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2))
-                        : IconButton(
-                      icon: Icon(
-                          messageController.text.isNotEmpty ||
-                              _pendingFile != null
-                              ? Icons.send
-                              : Icons.mic,
-                          color: Colors.white),
-                      onPressed: messageController.text.isNotEmpty ||
-                          _pendingFile != null
-                          ? sendMessage
-                          : _startRecording,
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.green,
+                  child: isSending
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
                     ),
+                  )
+                      : IconButton(
+                    icon: const Icon(
+                      Icons.send,
+                      color: Colors.white,
+                    ),
+                    onPressed: sendMessage,
                   ),
                 ),
               ],
@@ -742,7 +807,15 @@ class _ChatPageState extends State<ChatPage>
         children: [
           const Icon(Icons.mic, color: Colors.red),
           const SizedBox(width: 8),
-          const Text('Recording…', style: TextStyle(color: Colors.red)),
+          Text(
+            'Recording... '
+                '${_recordingDuration.inMinutes.toString().padLeft(2, '0')}:'
+                '${(_recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+            style: const TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const Spacer(),
           TextButton(
             onPressed: _cancelRecording,

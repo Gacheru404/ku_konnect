@@ -12,6 +12,7 @@
 //   file_url text, file_name text, is_typing bool default false
 
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -56,7 +57,20 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
   late Stream<List<Map<String, dynamic>>> _messagesStream;
   late Stream<List<Map<String, dynamic>>> _typingStream;
 
+  Timer? _presenceTimer;
+
   String get _myId => supabase.auth.currentUser!.id;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _updateLastSeen();
+    }
+
+    if (state == AppLifecycleState.paused) {
+      _updateLastSeen();
+    }
+  }
 
   @override
   void initState() {
@@ -76,6 +90,12 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
 
     messageController.addListener(_onTyping);
     _markAllRead();
+    _updateLastSeen();
+
+    _presenceTimer =
+        Timer.periodic(const Duration(seconds: 30), (_) {
+          _updateLastSeen();
+        });
   }
 
   @override
@@ -87,6 +107,7 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
     _recorder.dispose();
     _audioPlayer.dispose();
     _setTyping(false);
+    _presenceTimer?.cancel();
     super.dispose();
   }
 
@@ -111,6 +132,19 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
     }
 
     setState(() {});
+  }
+
+  Future<void> _updateLastSeen() async {
+    try {
+      await supabase
+          .from('profiles')
+          .update({
+        'last_seen': DateTime.now().toUtc().toIso8601String(),
+      })
+          .eq('id', _myId);
+    } catch (e) {
+      debugPrint('Last seen update failed: $e');
+    }
   }
 
   Future<void> _setTyping(bool typing) async {
@@ -768,7 +802,7 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
         if (ls == null) return const SizedBox.shrink();
         final diff =
         DateTime.now().toUtc().difference(DateTime.parse(ls).toUtc());
-        final online = diff.inMinutes < 5;
+        final online = diff.inMinutes < 15;
         return Text(
           online ? 'Online' : 'Last seen ${_formatLastSeen(diff)}',
           style: TextStyle(
@@ -783,8 +817,16 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: _typingStream,
       builder: (_, snap) {
-        if (!snap.hasData || snap.data!.isEmpty) return const SizedBox.shrink();
-        final row = snap.data!.first;
+        if (!snap.hasData) return const SizedBox.shrink();
+
+        final rows = snap.data!.where((row) =>
+        row['user_id'] == widget.receiverId &&
+            row['receiver_id'] == _myId);
+
+        if (rows.isEmpty) return const SizedBox.shrink();
+
+        final row = rows.first;
+
         final typing = row['is_typing'] == true;
 
         final updatedAt =
@@ -796,7 +838,7 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
         if (!(typing && fresh)) {
           return const SizedBox.shrink();
         }
-        if (!typing) return const SizedBox.shrink();
+
         return Padding(
           padding: const EdgeInsets.only(left: 14, bottom: 4),
           child: Row(
@@ -807,9 +849,13 @@ class _DmPageState extends State<DmPage> with WidgetsBindingObserver {
                 child: _TypingDots(),
               ),
               const SizedBox(width: 6),
-              Text('${widget.receiverUsername} is typing…',
-                  style:
-                  const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                '${widget.receiverUsername} is typing…',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
             ],
           ),
         );
