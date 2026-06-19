@@ -26,6 +26,8 @@ class _LoginScreenState
 
   String errorMessage = '';
 
+  bool _obscurePassword = true;
+
   Future<void> login() async {
 
     final email =
@@ -117,7 +119,7 @@ class _LoginScreenState
               controller:
               passwordController,
 
-              obscureText: true,
+              obscureText: _obscurePassword,
 
               textInputAction:
               TextInputAction.done,
@@ -126,12 +128,23 @@ class _LoginScreenState
                   login(),
 
               decoration:
-              const InputDecoration(
+              InputDecoration(
 
                 labelText: "Password",
 
                 border:
-                OutlineInputBorder(),
+                const OutlineInputBorder(),
+
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
               ),
             ),
 

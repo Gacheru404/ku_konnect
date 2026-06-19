@@ -61,32 +61,6 @@ class _KUKonnectAppState
 
         requestNotificationPermission();
 
-        _startOnlineHeartbeat();
-    }
-
-    void _startOnlineHeartbeat() {
-        _onlineTimer =
-            Timer.periodic(const Duration(seconds: 30), (_) async {
-
-                final user =
-                    Supabase.instance.client.auth.currentUser;
-
-                if (user == null) return;
-
-                await Supabase.instance.client
-                    .from('profiles')
-                    .update({
-                    'last_seen':
-                    DateTime.now().toUtc().toIso8601String(),
-                })
-                    .eq('id', user.id);
-            });
-    }
-
-    @override
-    void dispose() {
-        _onlineTimer?.cancel();
-        super.dispose();
     }
 
     Future<void>

@@ -30,6 +30,8 @@ class _SignupScreenState
 
   String errorMessage = '';
 
+  bool _obscurePassword = true;
+
   Future<void> createAccount() async {
 
     String username =
@@ -262,15 +264,26 @@ class _SignupScreenState
               controller:
               passwordController,
 
-              obscureText: true,
+              obscureText: _obscurePassword,
 
               decoration:
-              const InputDecoration(
+              InputDecoration(
 
                 labelText: 'Password',
 
                 border:
-                OutlineInputBorder(),
+                const OutlineInputBorder(),
+
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
               ),
             ),
 
