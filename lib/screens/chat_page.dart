@@ -18,6 +18,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 
 class ChatPage extends StatefulWidget {
   final VoidCallback? onBack;
@@ -899,10 +900,49 @@ class _ChatPageState extends State<ChatPage>
 
 // ─── Full screen media viewer ──────────────────────────────────────
 
-class _FullScreenMedia extends StatelessWidget {
+class _FullScreenMedia extends StatefulWidget {
   final String url;
   final String type;
   const _FullScreenMedia({required this.url, required this.type});
+
+  @override
+  State<_FullScreenMedia> createState() => _FullScreenMediaState();
+}
+
+class _FullScreenMediaState extends State<_FullScreenMedia> {
+  late VideoPlayerController _videoController;
+  bool _isInitialized = false;
+  bool _isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.type == 'video') {
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.url),
+      )
+        ..initialize().then((_) {
+          setState(() {
+            _isInitialized = true;
+          });
+        })
+        ..addListener(() {
+          if (_videoController.value.isPlaying != _isPlaying) {
+            setState(() {
+              _isPlaying = _videoController.value.isPlaying;
+            });
+          }
+        });
+    }
+  }
+
+  @override
+  void dispose() {
+    if (widget.type == 'video') {
+      _videoController.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -914,16 +954,41 @@ class _FullScreenMedia extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: () => Share.share(url),
+            onPressed: () => Share.share(widget.url),
           ),
         ],
       ),
       body: Center(
-        child: type == 'image'
-            ? InteractiveViewer(child: Image.network(url, fit: BoxFit.contain))
-            : const Text('Open in browser to play video',
-            style: TextStyle(color: Colors.white)),
+        child: widget.type == 'image'
+            ? InteractiveViewer(child: Image.network(widget.url, fit: BoxFit.contain))
+            : widget.type == 'video'
+                ? _isInitialized
+                    ? Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          AspectRatio(
+                            aspectRatio: _videoController.value.aspectRatio,
+                            child: VideoPlayer(_videoController),
+                          ),
+                          if (!_isPlaying)
+                            IconButton(
+                              icon: const Icon(Icons.play_circle_outline,
+                                  size: 80, color: Colors.white),
+                              onPressed: () {
+                                setState(() {
+                                  if (_videoController.value.isPlaying) {
+                                    _videoController.pause();
+                                  } else {
+                                    _videoController.play();
+                                  }
+                                });
+                              },
+                            ),
+                        ],
+                      )
+                    : const CircularProgressIndicator()
+                : const Text('Unknown media type',
+                    style: TextStyle(color: Colors.white)),
       ),
     );
   }
-}
