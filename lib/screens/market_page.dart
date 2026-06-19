@@ -14,7 +14,12 @@ class MarketPage extends StatefulWidget {
 class _MarketPageState extends State<MarketPage> {
   final supabase = Supabase.instance.client;
 
-  Future<void> deleteItem(String itemId) async {
+  String searchQuery = '';
+  double? minPrice;
+  double? maxPrice;
+  String sortBy = 'newest';
+
+  void deleteItem(String itemId) async {
     try {
       await supabase
           .from('marketplace')
@@ -232,6 +237,76 @@ class _MarketPageState extends State<MarketPage> {
     );
   }
 
+  }
+
+  List<dynamic> _filterItems(List<dynamic> items) {
+    return items.where((item) {
+      // Search by title and description
+      final matchesSearch = searchQuery.isEmpty ||
+          item['title'].toString().toLowerCase().contains(searchQuery.toLowerCase()) ||
+          (item['description'] != null &&
+              item['description'].toString().toLowerCase().contains(searchQuery.toLowerCase()));
+
+      // Filter by price range
+      final price = double.tryParse(item['price'].toString()) ?? 0;
+      final matchesPrice =
+          (minPrice == null || price >= minPrice!) &&
+          (maxPrice == null || price <= maxPrice!);
+
+      return matchesSearch && matchesPrice;
+    }).toList();
+  }
+
+  void _showFilterDialog() {
+    final minController = TextEditingController(text: minPrice?.toString() ?? '');
+    final maxController = TextEditingController(text: maxPrice?.toString() ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter by Price'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: minController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Min Price',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: maxController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Max Price',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                minPrice = double.tryParse(minController.text);
+                maxPrice = double.tryParse(maxController.text);
+              });
+              Navigator.pop(context);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = supabase.auth.currentUser;
@@ -253,156 +328,192 @@ class _MarketPageState extends State<MarketPage> {
           ),
         ],
       ),
-      body: StreamBuilder(
-        stream: supabase
-            .from('marketplace')
-            .stream(primaryKey: ['id'])
-            .order('created_at', ascending: false),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final items = snapshot.data!;
-
-          if (items.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.store, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text(
-                    'No items yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+      body: Column(
+        children: [
+          // Search and filter bar
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search items...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
-                  Text(
-                    'Be the first to sell something!',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(10),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final isOwner = item['user_id'] == currentUser?.id;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Image
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Image.network(
-                          item['image_url'],
-                          height: 220,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showFilterDialog,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder(
+              stream: supabase
+                  .from('marketplace')
+                  .stream(primaryKey: ['id'])
+                  .order('created_at', ascending: false),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final allItems = snapshot.data!;
+                final filteredItems = _filterItems(allItems);
+
+                if (filteredItems.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.store, size: 80, color: Colors.grey),
+                        SizedBox(height: 20),
+                        Text(
+                          'No items found',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
+                        Text(
+                          'Try adjusting your search or filters',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(10),
+                  itemCount: filteredItems.length,
+                  itemBuilder: (context, index) {
+                    final item = filteredItems[index];
+                    final isOwner = item['user_id'] == currentUser?.id;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Image
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(15),
+                              child: Image.network(
+                                item['image_url'],
                                 height: 220,
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.image_not_supported,
-                                    size: 60),
-                              ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-
-                      // Title and owner actions
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item['title'],
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Container(
+                                      height: 220,
+                                      color: Colors.grey[300],
+                                      child: const Icon(Icons.image_not_supported,
+                                          size: 60),
+                                    ),
                               ),
                             ),
-                          ),
-                          if (isOwner) ...[
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: Colors.blue),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        EditMarketItemPage(item: item),
+                            const SizedBox(height: 15),
+
+                            // Title and owner actions
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    item['title'],
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                );
-                              },
+                                ),
+                                if (isOwner) ...[
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blue),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EditMarketItemPage(item: item),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () =>
+                                        showDeleteConfirm(item['id'].toString()),
+                                  ),
+                                ],
+                              ],
                             ),
-                            IconButton(
-                              icon:
-                              const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () =>
-                                  showDeleteConfirm(item['id'].toString()),
-                            ),
-                          ],
-                        ],
-                      ),
 
-                      const SizedBox(height: 8),
-                      Text(item['description'] ?? ''),
-                      const SizedBox(height: 12),
+                            const SizedBox(height: 8),
+                            Text(item['description'] ?? ''),
+                            const SizedBox(height: 12),
 
-                      // Price
-                      Text(
-                        'KES ${item['price']}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        'Seller: ${item['username']}',
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      // Buy button — only show if not your own item
-                      if (!isOwner)
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.payment),
-                            label: const Text('Buy via M-Pesa'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              padding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                            // Price
+                            Text(
+                              'KES ${item['price']}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
                               ),
                             ),
-                            onPressed: () => showMpesaDialog(item),
-                          ),
+                            const SizedBox(height: 5),
+                            Text(
+                              'Seller: ${item['username']}',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+
+                            const SizedBox(height: 15),
+
+                            // Buy button — only show if not your own item
+                            if (!isOwner)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.payment),
+                                  label: const Text('Buy via M-Pesa'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: () => showMpesaDialog(item),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
