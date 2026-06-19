@@ -123,20 +123,94 @@ class _MarketPageState extends State<MarketPage> {
                 }
 
                 setState(() => isProcessing = true);
+                // ignore: avoid_print
+                print('ITEM PRICE RAW: ${item['price']}');
+                // ignore: avoid_print
+                print('ITEM PRICE TYPE: ${item['price'].runtimeType}');
+                // ignore: avoid_print
+                print('PARSED PRICE: ${int.tryParse(item['price'].toString()) ?? 0}');
 
-                final success = await PaymentService().stkPush(
+                final rawPrice = item['price'];
+
+                // ignore: avoid_print
+                print('RAW PRICE VALUE: $rawPrice');
+                // ignore: avoid_print
+                print('RAW PRICE TYPE: ${rawPrice.runtimeType}');
+
+                double parsedPrice = 0;
+
+                if (rawPrice is int) {
+                  parsedPrice = rawPrice.toDouble();
+                } else if (rawPrice is double) {
+                  parsedPrice = rawPrice;
+                } else if (rawPrice is String) {
+                  parsedPrice = double.tryParse(
+                    rawPrice.replaceAll(RegExp(r'[^0-9.]'), ''),
+                  ) ??
+                      0;
+                }
+
+                final amount = parsedPrice.round();
+                //ignore: avoid_print
+                print('FINAL AMOUNT: $amount');
+
+                // DEBUG
+                // ignore: avoid_print
+                print('RAW PRICE: ${item['price']}');
+                //ignore: avoid_print
+                print('AMOUNT SENT TO MPESA: $amount');
+
+                if (amount < 1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Invalid item price. Amount must be at least KES 1'),
+                    ),
+                  );
+
+                  setState(() => isProcessing = false);
+                  return;
+                }
+
+                final user = supabase.auth.currentUser;
+
+                await supabase.from('payments').insert({
+                  'buyer_id': user?.id,
+                  'seller_id': item['user_id'],
+                  'item_id': item['id'],
+                  'item_title': item['title'],
+                  'amount': amount,
+                  'phone_number': phone,
+                  'status': 'pending',
+                });
+
+                final response = await PaymentService().stkPush(
                   phone,
-                  int.tryParse(item['price'].toString()) ?? 0,
+                  amount,
                 );
 
+                if (response != null) {
+                  await supabase
+                      .from('payments')
+                      .update({
+                        'checkout_request_id':
+                          response['CheckoutRequestID']?.toString(),
+                  })
+                      .eq('buyer_id', user!.id)
+                      .eq('item_id', item['id'])
+                      .eq('status', 'pending');
+                }
+
                 if (!context.mounted) return;
+
                 Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(success
-                        ? 'M-Pesa prompt sent! Check your phone.'
-                        : 'Failed to send M-Pesa prompt. Check credentials.'),
+                    content: Text(
+                      response != null
+                          ? 'M-Pesa prompt sent! Check your phone.'
+                          : 'Failed to send M-Pesa prompt.',
+                    ),
                   ),
                 );
               },

@@ -218,6 +218,13 @@ class _SignupScreenState
 
           children: [
 
+          Image.asset(
+          'assets/logo.png',
+          height: 100, // Adjust size as needed
+        ),
+
+            const SizedBox(height: 30),
+
             // USERNAME FIELD
 
             TextField(
