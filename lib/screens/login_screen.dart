@@ -36,10 +36,9 @@ class _LoginScreenState
     final password =
     passwordController.text.trim();
 
-    // Check KU email first
-    if (!email.endsWith('@students.ku.ac.ke')) {
+    if (email.isEmpty) {
       setState(() {
-        errorMessage = 'Only KU student emails are allowed';
+        errorMessage = 'Please enter your email.';
       });
       return;
     }
@@ -68,7 +67,7 @@ class _LoginScreenState
 
     } catch (e) {
       setState(() {
-        errorMessage = 'Invalid password';
+        errorMessage = 'Invalid email or password';
       });
     }
   }
@@ -93,6 +92,13 @@ class _LoginScreenState
           MainAxisAlignment.center,
 
           children: [
+
+          Image.asset(
+          'assets/logo.png',
+          height: 100, // Adjust size as needed
+        ),
+
+            const SizedBox(height: 30),
 
             TextField(
 

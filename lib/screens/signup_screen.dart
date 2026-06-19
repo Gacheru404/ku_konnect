@@ -28,9 +28,17 @@ class _SignupScreenState
   final passwordController =
   TextEditingController();
 
+  final businessNameController =
+  TextEditingController();
+
+  final phoneNumberController =
+  TextEditingController();
+
   String errorMessage = '';
 
   bool _obscurePassword = true;
+
+  String userType = 'student';
 
   Future<void> createAccount() async {
 
@@ -94,18 +102,60 @@ class _SignupScreenState
       return;
     }
 
-    // KU EMAIL VALIDATION
+    // EMAIL VALIDATION BASED ON USER TYPE
 
-    if (!email.endsWith(
-        '@students.ku.ac.ke')) {
+    if (userType == 'student') {
+      if (!email.endsWith(
+          '@students.ku.ac.ke')) {
 
-      setState(() {
+        setState(() {
 
-        errorMessage =
-        'Only KU student emails are allowed.';
-      });
+          errorMessage =
+          'Only KU student emails are allowed for students.';
+        });
 
-      return;
+        return;
+      }
+    } else if (userType == 'seller') {
+      // Validate seller email (basic email validation)
+      if (!email.contains('@')) {
+        setState(() {
+          errorMessage =
+          'Please enter a valid email address.';
+        });
+        return;
+      }
+
+      // Validate seller-specific fields
+      String businessName =
+      businessNameController.text.trim();
+
+      String phoneNumber =
+      phoneNumberController.text.trim();
+
+      if (businessName.isEmpty) {
+        setState(() {
+          errorMessage =
+          'Business name is required for sellers.';
+        });
+        return;
+      }
+
+      if (phoneNumber.isEmpty) {
+        setState(() {
+          errorMessage =
+          'Phone number is required for sellers.';
+        });
+        return;
+      }
+
+      if (phoneNumber.length < 10) {
+        setState(() {
+          errorMessage =
+          'Phone number must be at least 10 digits.';
+        });
+        return;
+      }
     }
 
     // PASSWORD VALIDATION
@@ -157,13 +207,23 @@ class _SignupScreenState
 
     try {
 
+      String? businessName;
+      String? phoneNumber;
+
+      if (userType == 'seller') {
+        businessName =
+        businessNameController.text.trim();
+        phoneNumber =
+        phoneNumberController.text.trim();
+      }
+
       await AuthService().signUp(
-
         email: email,
-
         password: password,
-
         username: username,
+        userType: userType,
+        businessName: businessName,
+        phoneNumber: phoneNumber,
       );
 
       if (!mounted) return;
@@ -211,157 +271,222 @@ class _SignupScreenState
 
         padding: const EdgeInsets.all(20),
 
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
 
-          mainAxisAlignment:
-          MainAxisAlignment.center,
+            mainAxisAlignment:
+            MainAxisAlignment.center,
 
-          children: [
+            children: [
 
-            // USERNAME FIELD
+            Image.asset(
+            'assets/logo.png',
+            height: 100,
+          ),
 
-            TextField(
+              const SizedBox(height: 30),
 
-              controller:
-              usernameController,
+              // USER TYPE SELECTION
 
-              decoration:
-              const InputDecoration(
-
-                labelText: 'Username',
-
-                border:
-                OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // EMAIL FIELD
-
-            TextField(
-
-              controller:
-              emailController,
-
-              decoration:
-              const InputDecoration(
-
-                labelText:
-                'KU Student Email',
-
-                border:
-                OutlineInputBorder(),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // PASSWORD FIELD
-
-            TextField(
-
-              controller:
-              passwordController,
-
-              obscureText: _obscurePassword,
-
-              decoration:
-              InputDecoration(
-
-                labelText: 'Password',
-
-                border:
-                const OutlineInputBorder(),
-
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Student'),
+                      value: 'student',
+                      groupValue: userType,
+                      onChanged: (value) {
+                        setState(() {
+                          userType = value!;
+                        });
+                      },
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: const Text('Seller'),
+                      value: 'seller',
+                      groupValue: userType,
+                      onChanged: (value) {
+                        setState(() {
+                          userType = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // USERNAME FIELD
+
+              TextField(
+
+                controller:
+                usernameController,
+
+                decoration:
+                const InputDecoration(
+
+                  labelText: 'Username',
+
+                  border:
+                  OutlineInputBorder(),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 15),
 
-            // SIGNUP BUTTON
+              // EMAIL FIELD
 
-            SizedBox(
+              TextField(
 
-              width: double.infinity,
+                controller:
+                emailController,
 
-              height: 50,
+                decoration:
+                InputDecoration(
 
-              child: ElevatedButton(
+                  labelText:
+                  userType == 'student' ? 'KU Student Email' : 'Email',
 
-                onPressed: createAccount,
+                  border:
+                  const OutlineInputBorder(),
+                ),
+              ),
 
-                child: const Text(
+              const SizedBox(height: 15),
 
-                  'Create Account',
+              // CONDITIONAL SELLER FIELDS
 
-                  style: TextStyle(
-                    fontSize: 18,
+              if (userType == 'seller') ...[
+                TextField(
+                  controller: businessNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Business Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: phoneNumberController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 15),
+              ],
+
+              // PASSWORD FIELD
+
+              TextField(
+
+                controller:
+                passwordController,
+
+                obscureText: _obscurePassword,
+
+                decoration:
+                InputDecoration(
+
+                  labelText: 'Password',
+
+                  border:
+                  const OutlineInputBorder(),
+
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
-            // ERROR MESSAGE
+              // SIGNUP BUTTON
 
-            Text(
+              SizedBox(
 
-              errorMessage,
+                width: double.infinity,
 
-              style: const TextStyle(
-                color: Colors.red,
-              ),
-            ),
+                height: 50,
 
-            const SizedBox(height: 20),
+                child: ElevatedButton(
 
-            // LOGIN LINK
-
-            Row(
-
-              mainAxisAlignment:
-              MainAxisAlignment.center,
-
-              children: [
-
-                const Text(
-                  'Already have an account?',
-                ),
-
-                TextButton(
-
-                  onPressed: () {
-
-                    Navigator.push(
-
-                      context,
-
-                      MaterialPageRoute(
-                        builder: (context) =>
-                        const LoginScreen(),
-                      ),
-                    );
-                  },
+                  onPressed: createAccount,
 
                   child: const Text(
-                    'Login',
+
+                    'Create Account',
+
+                    style: TextStyle(
+                      fontSize: 18,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+
+              const SizedBox(height: 15),
+
+              // ERROR MESSAGE
+
+              Text(
+
+                errorMessage,
+
+                style: const TextStyle(
+                  color: Colors.red,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // LOGIN LINK
+
+              Row(
+
+                mainAxisAlignment:
+                MainAxisAlignment.center,
+
+                children: [
+
+                  const Text(
+                    'Already have an account?',
+                  ),
+
+                  TextButton(
+
+                    onPressed: () {
+
+                      Navigator.push(
+
+                        context,
+
+                        MaterialPageRoute(
+                          builder: (context) =>
+                          const LoginScreen(),
+                        ),
+                      );
+                    },
+
+                    child: const Text(
+                      'Login',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

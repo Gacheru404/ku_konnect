@@ -15,6 +15,13 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 120, // Adjust size as needed
+            ),
+
+            const SizedBox(height: 20),
+
             const Text(
               'Welcome to KU Konnect',
               style: TextStyle(

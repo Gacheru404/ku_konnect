@@ -15,6 +15,12 @@ class AuthService {
 
     required String username,
 
+    String userType = 'student',
+
+    String? businessName,
+
+    String? phoneNumber,
+
   }) async {
 
     // CHECK USERNAME
@@ -65,20 +71,25 @@ class AuthService {
 
     // INSERT PROFILE
 
+    final profileData = {
+      'id': user.id,
+      'username': username,
+      'email': email,
+      'bio': '',
+      'user_type': userType,
+    };
+
+    if (userType == 'seller') {
+      profileData['business_name'] = businessName ?? '';
+      profileData['phone_number'] = phoneNumber ?? '';
+      profileData['seller_verified'] = false;
+    }
+
     await supabase
 
         .from('profiles')
 
-        .insert({
-
-      'id': user.id,
-
-      'username': username,
-
-      'email': email,
-
-      'bio': '',
-    });
+        .insert(profileData);
   }
 
   // LOGIN
