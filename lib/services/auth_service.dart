@@ -71,7 +71,7 @@ class AuthService {
 
     // INSERT PROFILE
 
-    final profileData = {
+    final Map<String, dynamic> profileData = {
       'id': user.id,
       'username': username,
       'email': email,

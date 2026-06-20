@@ -960,35 +960,37 @@ class _FullScreenMediaState extends State<_FullScreenMedia> {
       ),
       body: Center(
         child: widget.type == 'image'
-            ? InteractiveViewer(child: Image.network(widget.url, fit: BoxFit.contain))
+            ? InteractiveViewer(
+            child: Image.network(widget.url, fit: BoxFit.contain))
             : widget.type == 'video'
-                ? _isInitialized
-                    ? Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          AspectRatio(
-                            aspectRatio: _videoController.value.aspectRatio,
-                            child: VideoPlayer(_videoController),
-                          ),
-                          if (!_isPlaying)
-                            IconButton(
-                              icon: const Icon(Icons.play_circle_outline,
-                                  size: 80, color: Colors.white),
-                              onPressed: () {
-                                setState(() {
-                                  if (_videoController.value.isPlaying) {
-                                    _videoController.pause();
-                                  } else {
-                                    _videoController.play();
-                                  }
-                                });
-                              },
-                            ),
-                        ],
-                      )
-                    : const CircularProgressIndicator()
-                : const Text('Unknown media type',
-                    style: TextStyle(color: Colors.white)),
+            ? _isInitialized
+            ? Stack(
+          alignment: Alignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: _videoController.value.aspectRatio,
+              child: VideoPlayer(_videoController),
+            ),
+            if (!_isPlaying)
+              IconButton(
+                icon: const Icon(Icons.play_circle_outline,
+                    size: 80, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    if (_videoController.value.isPlaying) {
+                      _videoController.pause();
+                    } else {
+                      _videoController.play();
+                    }
+                  });
+                },
+              ),
+          ],
+        )
+            : const CircularProgressIndicator()
+            : const Text('Unknown media type',
+            style: TextStyle(color: Colors.white)),
       ),
     );
   }
+}

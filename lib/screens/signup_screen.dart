@@ -199,7 +199,7 @@ class _SignupScreenState
       setState(() {
 
         errorMessage =
-        'Password must contain a capital letter and number.';
+        'Password must contain uppercase, lowercase, number, and a special character.';
       });
 
       return;
@@ -273,75 +273,47 @@ class _SignupScreenState
 
         child: SingleChildScrollView(
           child: Column(
-
-            mainAxisAlignment:
-            MainAxisAlignment.center,
-
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-
-            Image.asset(
-            'assets/logo.png',
-            height: 100,
-          ),
-
-              const SizedBox(height: 30),
-
-              // USER TYPE SELECTION
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Student'),
-                      value: 'student',
-                      groupValue: userType,
-                      onChanged: (value) {
-                        setState(() {
-                          userType = value!;
-                        });
-                      },
-                    ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Seller'),
-                      value: 'seller',
-                      groupValue: userType,
-                      onChanged: (value) {
-                        setState(() {
-                          userType = value!;
-                        });
-                      },
-                    ),
-                  ),
-                ],
+              Image.asset(
+                'assets/logo.png',
+                height: 100,
               ),
-
               const SizedBox(height: 20),
-
+              // USER TYPE SELECTION
+              RadioGroup<String>(
+                groupValue: userType,
+                onChanged: (value) {
+                  setState(() {
+                    userType = value!;
+                  });
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Student', style: TextStyle(fontSize: 14)),
+                        value: 'student',
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: const Text('Seller', style: TextStyle(fontSize: 14)),
+                        value: 'seller',
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               // USERNAME FIELD
-          Image.asset(
-          'assets/logo.png',
-          height: 100, // Adjust size as needed
-        ),
-
-            const SizedBox(height: 30),
-
-            // USERNAME FIELD
-
               TextField(
-
-                controller:
-                usernameController,
-
-                decoration:
-                const InputDecoration(
-
+                controller: usernameController,
+                decoration: const InputDecoration(
                   labelText: 'Username',
-
-                  border:
-                  OutlineInputBorder(),
+                  border: OutlineInputBorder(),
                 ),
               ),
 
